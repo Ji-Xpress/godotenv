@@ -1,4 +1,4 @@
-tool
+@tool
 extends Node
 
 # Constants for .env file location
@@ -31,13 +31,12 @@ func prompt_message(msg: String, error: bool = false) -> void:
 
 func get_parsed_env() -> Dictionary:
 	var env_variables: Dictionary
-	var dot_env: File = File.new()
-	if not dot_env.file_exists(FILE_PATH):
+	var dot_env: FileAccess = FileAccess.open(FILE_PATH, FileAccess.READ)
+	if not dot_env == null:
 		prompt_message(prompt.creating_dotenv_file)
 		_create_dotenv()
 		return env_variables
-
-	dot_env.open(FILE_PATH, File.READ)
+	
 	while !dot_env.eof_reached():
 		var line: String = dot_env.get_line()
 		if line == "":
@@ -54,19 +53,18 @@ func get_parsed_env() -> Dictionary:
 	return env_variables
 
 func overwrite_dotenv() -> void:
-	var dot_env: File = File.new()
-	var new_content: String
-	for key in environment.keys():
-		new_content += "%s=%s" % [key, environment[key]]
-		var last_key: String = environment.keys()[len(environment) - 1]
-		if key != last_key:
-			new_content += "\n"
-	dot_env.open(FILE_PATH, File.WRITE)
-	dot_env.store_string(new_content)
+	var dot_env: FileAccess = FileAccess.open(FILE_PATH, FileAccess.WRITE)
+	if not dot_env == null:
+		var new_content: String
+		for key in environment.keys():
+			new_content += "%s=%s" % [key, environment[key]]
+			var last_key: String = environment.keys()[len(environment) - 1]
+			if key != last_key:
+				new_content += "\n"
+		dot_env.store_string(new_content)
 
 func create_var(variable_name: String, value: String, overwrite: bool = false) -> void:
-	var dot_env: File = File.new()
-	if not dot_env.file_exists(FILE_PATH):
+	if not FileAccess.file_exists(FILE_PATH):
 		prompt_message(prompt.need_dotenv, true)
 		return
 
@@ -79,13 +77,14 @@ func create_var(variable_name: String, value: String, overwrite: bool = false) -
 		environment[variable_name] = value
 		overwrite_dotenv()
 		return
-
-	dot_env.open(FILE_PATH, File.READ_WRITE)
-	dot_env.seek_end()
-#	Append the new env var to the end of an existing .env file
-	dot_env.store_string("\n%s=%s" % [variable_name, value])
-	dot_env.close()
-	environment = get_parsed_env()
+	
+	var dot_env: FileAccess = FileAccess.open(FILE_PATH, FileAccess.READ_WRITE)
+	if not dot_env == null:
+		dot_env.seek_end()
+	#	Append the new env var to the end of an existing .env file
+		dot_env.store_string("\n%s=%s" % [variable_name, value])
+		dot_env.close()
+		environment = get_parsed_env()
 
 func get_var(variable_name: String) -> String:
 	if environment.has(variable_name):
@@ -95,10 +94,9 @@ func get_var(variable_name: String) -> String:
 	return ""
 
 func _create_dotenv() -> void:
-	var dot_env: File = File.new()
+	var dot_env: FileAccess = FileAccess.open(FILE_PATH, FileAccess.WRITE)
 #	Creates the .env file. Pushes an error cause it already exists.
-	if not dot_env.file_exists(FILE_PATH):
-		dot_env.open(FILE_PATH, File.WRITE)
+	if not dot_env == null:
 		dot_env.close()
 	else:
 		prompt_message(prompt.creation_error % FILE_PATH)
